@@ -220,6 +220,7 @@ def main():
     while True:
         state = update_robot_actions_progress(state)
         state = dispatch_robot_actions(state)
+        log_state(state)
         if len(state.robots) >= 30:
             print(f"Finished with {len(state.robots)} robots in {state.clock}.")
             break
@@ -401,6 +402,21 @@ def go_mine_bars(state: State, robot: Robot) -> State:
     robot.set_action(action)
     print(f"mining a bar")
     return state
+
+
+def log_state(state: State):
+    print(
+        " | ".join(
+            [
+                f"time:\t{state.clock}",
+                f"robots:\t{len(state.robots)}",
+                f"foos:\t{len(state.foos)}",
+                f"bars:\t{len(state.bars)}",
+                f"foobars:\t{len(state.foobars)}",
+                f"money:\t{state.money}",
+            ]
+        )
+    )
 
 
 if __name__ == "__main__":
