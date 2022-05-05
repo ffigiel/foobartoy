@@ -36,14 +36,14 @@ class Time:
 
 
 class Foo(int):
-    """Each foo needs to have a unique id."""
+    """Each foo must have a unique serial number."""
 
     def __str__(self) -> str:
         return f"foo_{int(self)}"
 
 
 class Bar(int):
-    """Each bar needs to have a unique id."""
+    """Each bar must have a unique serial number."""
 
     def __str__(self) -> str:
         return f"bar_{int(self)}"
@@ -111,7 +111,12 @@ class RobotActionMiningBar(RobotAction):
 
 
 class RobotActionAssemblingFoobar(RobotAction):
-    """Assembling a foobar from a foo and a bar: keeps the robot busy for 2 seconds."""
+    """Assembling a foobar from a foo and a bar: keeps the robot busy for 2 seconds.
+
+    The operation has a 60% chance of success.
+    """
+
+    success_chance = 0.6
 
     def __init__(self, foo: Foo, bar: Bar):
         self.foo = foo
@@ -122,9 +127,18 @@ class RobotActionAssemblingFoobar(RobotAction):
 class RobotActionSellingFoobars(RobotAction):
     """Sell foobar: 10s to sell from 1 to 5 foobar."""
 
+    max_foobars = 5
+
     def __init__(self, foobars: List[Foobar]):
+        if len(foobars) > self.max_foobars:
+            raise ValueError(f"Cannot sell more than {self.max_foobars} foobars.")
         self.foobars = foobars
         self.remaining_time = Time(100)
+
+    @property
+    def profit(self):
+        # we earn €1 per foobar sold
+        return Money(len(self.foobars))
 
 
 class Robot:
@@ -148,11 +162,35 @@ class State:
         self.money = Money(0)
 
 
+class FutureState:
+    """State we expect to have in the future."""
+
+    def __init__(self, state):
+        self.num_foos = len(state.foos)
+        self.num_bars = len(state.bars)
+        self.num_foobars = len(state.foobars)
+        self.money = state.money
+        for robot in state.robots:
+            action = robot.action
+            if isinstance(action, RobotActionChangingTask):
+                action = action.next_task
+            if isinstance(action, RobotActionMiningFoo):
+                self.num_foos += 1
+            elif isinstance(action, RobotActionMiningBar):
+                self.num_bars += 1
+            elif isinstance(action, RobotActionAssemblingFoobar):
+                self.num_foobars += action.success_chance
+                self.num_bars += 1 - action.success_chance
+            elif isinstance(action, RobotActionSellingFoobars):
+                self.money.add(action.profit)
+
+
 def main():
     state = State()
     print("infinite loop")
     while True:
-        update_current_robot_actions(state)
+        state = update_current_robot_actions(state)
+        state = dispatch_robot_actions(state)
         # state = buy_more_robots_if_possible(state)
         if len(state.robots) >= 30:
             print(f"Finished with {len(state.robots)} robots in {state.clock}s.")
@@ -169,54 +207,62 @@ def update_current_robot_actions(state: State) -> State:
         if isinstance(robot.action, RobotActionChangingTask):
             robot.action = robot.action.next_task
         elif isinstance(robot.action, RobotActionMiningFoo):
-            state = create_foo(state)
+            state = mine_foo(state)
             robot.action = RobotActionIdle(robot.action)
         elif isinstance(robot.action, RobotActionMiningBar):
-            state = create_bar(state)
+            state = mine_bar(state)
             robot.action = RobotActionIdle(robot.action)
         elif isinstance(robot.action, RobotActionAssemblingFoobar):
-            state = create_bar(state)
+            state = assemble_foobar(state, robot.action)
             robot.action = RobotActionIdle(robot.action)
         elif isinstance(robot.action, RobotActionSellingFoobars):
-            state = sell_foobars(state, robot.action.foobars)
+            state = sell_foobars(state, robot.action)
             robot.action = RobotActionIdle(robot.action)
     return state
 
 
-def create_foo(state: State) -> State:
+def mine_foo(state: State) -> State:
     state.foo_ctr += 1
     foo = Foo(state.foo_ctr)
     state.foos.append(foo)
-    print(f"obtained {foo}")
+    print(f"mined {foo}")
     return state
 
 
-def create_bar(state: State) -> State:
+def mine_bar(state: State) -> State:
     state.bar_ctr += 1
     bar = Bar(state.bar_ctr)
     state.bars.append(bar)
-    print(f"obtained {bar}")
+    print(f"mined {bar}")
     return state
 
 
-def assemble_foobar(state: State, foo: Foo, bar: Bar) -> State:
-    if random.random() < 0.6:
-        # The operation has a 60% chance of success
-        foobar = Foobar(foo, bar)
-        print(f"obtained {foobar}")
+def assemble_foobar(state: State, action: RobotActionAssemblingFoobar) -> State:
+    if random.random() < action.success_chance:
+        foobar = Foobar(action.foo, action.bar)
+        print(f"assembled {foobar}")
         state.foobars.append(foobar)
     else:
         # in case of failure the bar can be reused, the foo is lost.
-        print(f"assembling foobar failed, recovered {bar}")
-        state.bars.append(bar)
+        print(f"assembling foobar failed, recovered {action.bar}")
+        state.bars.append(action.bar)
     return state
 
 
-def sell_foobars(state: State, foobars: List[Foobar]) -> State:
-    # we earn €1 per foobar sold
-    profit = Money(len(foobars))
-    print(f"sold foobars for {profit}")
-    state.money.add(profit)
+def sell_foobars(state: State, action: RobotActionSellingFoobars) -> State:
+    print(f"sold foobars for {action.profit}")
+    state.money.add(action.profit)
+    return state
+
+
+def dispatch_robot_actions(state: State) -> State:
+    for robot in state.robots:
+        if not isinstance(robot.action, RobotActionIdle):
+            continue
+        # This robot is idle
+        future_state = FutureState(state)
+        if future_state.num_foobars < RobotActionSellingFoobars.max_foobars:
+            pass  # TODO
     return state
 
 
