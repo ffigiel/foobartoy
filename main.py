@@ -202,7 +202,7 @@ def main():
     state = State()
     print("infinite loop")
     while True:
-        state = update_current_robot_actions(state)
+        state = update_robot_actions_progress(state)
         state = dispatch_robot_actions(state)
         # state = buy_more_robots_if_possible(state)
         if len(state.robots) >= 30:
@@ -211,7 +211,7 @@ def main():
         state.clock.increment()
 
 
-def update_current_robot_actions(state: State) -> State:
+def update_robot_actions_progress(state: State) -> State:
     for robot in state.robots:
         robot.action.remaining_time.decrement()
         if robot.action.remaining_time > 0:
@@ -219,7 +219,10 @@ def update_current_robot_actions(state: State) -> State:
         # Action is finished
         if isinstance(robot.action, RobotActionChangingTask):
             robot.action = robot.action.next_task
-        elif isinstance(robot.action, RobotActionMiningFoo):
+            # Need to check remaining time again, for example buying a new robot takes 0s to complete
+            if robot.action.remaining_time > 0:
+                continue
+        if isinstance(robot.action, RobotActionMiningFoo):
             state = mine_foo(state)
             robot.action = RobotActionIdle(robot.action)
         elif isinstance(robot.action, RobotActionMiningBar):
@@ -230,6 +233,9 @@ def update_current_robot_actions(state: State) -> State:
             robot.action = RobotActionIdle(robot.action)
         elif isinstance(robot.action, RobotActionSellingFoobars):
             state = sell_foobars(state, robot.action)
+            robot.action = RobotActionIdle(robot.action)
+        elif isinstance(robot.action, RobotActionBuyNewRobot):
+            state = buy_new_robot(state, robot.action)
             robot.action = RobotActionIdle(robot.action)
     return state
 
@@ -265,6 +271,12 @@ def assemble_foobar(state: State, action: RobotActionAssemblingFoobar) -> State:
 def sell_foobars(state: State, action: RobotActionSellingFoobars) -> State:
     print(f"sold foobars for {action.profit}")
     state.money.add(action.profit)
+    return state
+
+
+def buy_new_robot(state: State, action: RobotActionBuyNewRobot) -> State:
+    print(f"bought a new robot for {action.cost} and {action.foos}")
+    state.robots.append(Robot())
     return state
 
 
