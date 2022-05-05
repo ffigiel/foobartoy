@@ -54,7 +54,7 @@ class Foobar:
         self.foo = foo
         self.bar = bar
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"foobar_{int(self.foo)}_{int(self.bar)}"
 
 
