@@ -221,7 +221,6 @@ def main():
     while True:
         state = update_robot_actions_progress(state)
         state = dispatch_robot_actions(state)
-        # state = buy_more_robots_if_possible(state)
         if len(state.robots) >= 30:
             print(f"Finished with {len(state.robots)} robots in {state.clock}s.")
             break
@@ -326,8 +325,22 @@ def dispatch_robot_actions(state: State) -> State:
             ):
                 state = go_assemble_foobars(state, robot)
                 continue
+        # Mine foos/bars based on which we need more of
+        fb_diff = future_state.num_foos - future_state.num_bars
+        if fb_diff < RobotActionBuyNewRobot.foos_required:
+            state = go_mine_foos(state, robot)
+            continue
+        else:
+            state = go_mine_bars(state, robot)
+            continue
         print("Warning: A robot has nothing to do!")
     return state
+
+
+def can_afford_new_robot(state: State) -> bool:
+    return (state.money > RobotActionBuyNewRobot.cost) and (
+        len(state.foos) > RobotActionBuyNewRobot.foos_required
+    )
 
 
 def should_this_robot_do_that_action(
@@ -378,10 +391,18 @@ def go_assemble_foobars(state: State, robot: Robot) -> State:
     return state
 
 
-def can_afford_new_robot(state: State) -> bool:
-    return (state.money > RobotActionBuyNewRobot.cost) and (
-        len(state.foos) > RobotActionBuyNewRobot.foos_required
-    )
+def go_mine_foos(state: State, robot: Robot) -> State:
+    action = RobotActionMiningFoo()
+    robot.set_action(action)
+    print(f"mining a foo")
+    return state
+
+
+def go_mine_bars(state: State, robot: Robot) -> State:
+    action = RobotActionMiningBar()
+    robot.set_action(action)
+    print(f"mining a bar")
+    return state
 
 
 if __name__ == "__main__":
