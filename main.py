@@ -88,6 +88,9 @@ class RobotAction(metaclass=ABCMeta):
 
     remaining_time = Time(0)
 
+    def __repr__(self) -> str:
+        return type(self).__name__
+
 
 class RobotActionIdle(RobotAction):
     """The robot has nothing to do."""
@@ -406,6 +409,7 @@ def go_mine_bars(state: State, robot: Robot) -> State:
 
 def log_state(state: State):
     print(
+        "|",
         " | ".join(
             [
                 f"time:\t{state.clock}",
@@ -415,8 +419,9 @@ def log_state(state: State):
                 f"foobars:\t{len(state.foobars)}",
                 f"money:\t{state.money}",
             ]
-        )
+        ),
     )
+    print("|", " | ".join(repr(r.action) for r in state.robots))
 
 
 if __name__ == "__main__":
