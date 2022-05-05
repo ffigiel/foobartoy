@@ -314,6 +314,7 @@ def dispatch_robot_actions(state: State) -> State:
             ):
                 state = go_sell_foobars(state, robot)
                 continue
+        # Figure out what action to prioritize
         future_state = FutureState(state)
         if future_state.num_foobars < RobotActionSellingFoobars.max_foobars:
             pass  # TODO
@@ -324,12 +325,15 @@ def dispatch_robot_actions(state: State) -> State:
 def should_this_robot_do_that_action(
     state: State, robot: Robot, action: Type[RobotAction]
 ) -> bool:
+    # Can I do it efficiently?
     if robot_did_this_action_recently(robot, action):
         return True
+    # Can other robot do it for me?
     for other_robot in state.robots:
         if other_robot != robot and robot_did_this_action_recently(other_robot, action):
-            return True
-    return False
+            return False
+    # The robots are busy with other things, I must do the task myself.
+    return True
 
 
 def robot_did_this_action_recently(robot: Robot, action: Type[RobotAction]) -> bool:
