@@ -204,7 +204,7 @@ class FutureState:
         self.num_foos = len(state.foos)
         self.num_bars = len(state.bars)
         self.num_foobars = len(state.foobars)
-        self.money = state.money
+        self.money = Money(state.money.n)
         for robot in state.robots:
             action = robot.action
             if isinstance(action, RobotActionChangingTask):
