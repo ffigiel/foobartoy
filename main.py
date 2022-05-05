@@ -70,6 +70,9 @@ class Money:
     def __gt__(self, other: Money):
         return self.n.__gt__(other.n)
 
+    def __ge__(self, other: Money):
+        return self.n.__ge__(other.n)
+
     def __eq__(self, other: Money):
         return self.n.__eq__(other.n)
 
@@ -305,32 +308,40 @@ def dispatch_robot_actions(state: State) -> State:
             continue
         # This robot is idle
         # Prioritize buying more robots whenever possible
-        if can_afford_new_robot(state):
-            if should_this_robot_do_that_action(state, robot, RobotActionBuyNewRobot):
-                state = go_buy_new_robot(state, robot)
-                continue
+        if can_afford_new_robot(state) and should_this_robot_do_that_action(
+            state, robot, RobotActionBuyNewRobot
+        ):
+            state = go_buy_new_robot(state, robot)
+            continue
         # Always sell maximum amount of foobars to save time
-        if len(state.foobars) >= RobotActionSellingFoobars.max_foobars:
-            if should_this_robot_do_that_action(
+        if (
+            len(state.foobars) >= RobotActionSellingFoobars.max_foobars
+            and state.money < RobotActionBuyNewRobot.cost
+            and should_this_robot_do_that_action(
                 state, robot, RobotActionSellingFoobars
-            ):
-                state = go_sell_foobars(state, robot)
-                continue
-        # See what resources will be available in the future
-        future_state = FutureState(state)
+            )
+        ):
+            state = go_sell_foobars(state, robot)
+            continue
         # Assemble foobars if we have surplus resources
         if (
-            len(state.foos) > RobotActionBuyNewRobot.foos_required
+            len(state.foobars) < RobotActionSellingFoobars.max_foobars
+            and len(state.foos) > RobotActionBuyNewRobot.foos_required
             and len(state.bars) > 0
-        ):
-            if should_this_robot_do_that_action(
+            and should_this_robot_do_that_action(
                 state, robot, RobotActionAssemblingFoobar
-            ):
-                state = go_assemble_foobars(state, robot)
-                continue
+            )
+        ):
+            state = go_assemble_foobars(state, robot)
+            continue
+        # See what resources will be available in the future
+        future_state = FutureState(state)
         # Mine foos/bars based on which we need more of
         fb_diff = future_state.num_foos - future_state.num_bars
-        if fb_diff < RobotActionBuyNewRobot.foos_required:
+        if (
+            fb_diff < RobotActionBuyNewRobot.foos_required
+            and should_this_robot_do_that_action(state, robot, RobotActionMiningFoo)
+        ):
             state = go_mine_foos(state, robot)
             continue
         else:
@@ -340,7 +351,7 @@ def dispatch_robot_actions(state: State) -> State:
 
 
 def can_afford_new_robot(state: State) -> bool:
-    return (state.money > RobotActionBuyNewRobot.cost) and (
+    return (state.money >= RobotActionBuyNewRobot.cost) and (
         len(state.foos) > RobotActionBuyNewRobot.foos_required
     )
 
@@ -360,9 +371,10 @@ def should_this_robot_do_that_action(
 
 
 def robot_did_this_action_recently(robot: Robot, action: Type[RobotAction]) -> bool:
-    return isinstance(robot.action, RobotActionIdle) and isinstance(
-        robot.action.prev_action, action
-    )
+    return (
+        isinstance(robot.action, RobotActionIdle)
+        and isinstance(robot.action.prev_action, action)
+    ) or (action == RobotActionBuyNewRobot and isinstance(robot.action, action))
 
 
 def go_buy_new_robot(state: State, robot: Robot) -> State:
