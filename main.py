@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import random
 from typing import List, Optional
 from abc import ABCMeta
@@ -36,19 +38,24 @@ class Time:
 class Foo(int):
     """Each foo needs to have a unique id."""
 
-    pass
+    def __str__(self) -> str:
+        return f"foo_{int(self)}"
 
 
 class Bar(int):
     """Each bar needs to have a unique id."""
 
-    pass
+    def __str__(self) -> str:
+        return f"bar_{int(self)}"
 
 
 class Foobar:
     def __init__(self, foo: Foo, bar: Bar):
         self.foo = foo
         self.bar = bar
+
+    def __str__(self) -> str:
+        return f"foobar_{int(self.foo)}_{int(self.bar)}"
 
 
 class Money:
@@ -60,11 +67,11 @@ class Money:
     def __str__(self) -> str:
         return f"{self.n}€"
 
-    def add(self, n: int):
-        self.n += n
+    def add(self, other: Money):
+        self.n += other.n
 
-    def sub(self, n: int):
-        self.n -= n
+    def sub(self, other: Money):
+        self.n -= other.n
 
 
 class RobotAction(metaclass=ABCMeta):
@@ -178,13 +185,17 @@ def update_current_robot_actions(state: State) -> State:
 
 def create_foo(state: State) -> State:
     state.foo_ctr += 1
-    state.foos.append(Foo(state.foo_ctr))
+    foo = Foo(state.foo_ctr)
+    state.foos.append(foo)
+    print(f"obtained {foo}")
     return state
 
 
 def create_bar(state: State) -> State:
     state.bar_ctr += 1
-    state.bars.append(Bar(state.bar_ctr))
+    bar = Bar(state.bar_ctr)
+    state.bars.append(bar)
+    print(f"obtained {bar}")
     return state
 
 
@@ -192,16 +203,20 @@ def assemble_foobar(state: State, foo: Foo, bar: Bar) -> State:
     if random.random() < 0.6:
         # The operation has a 60% chance of success
         foobar = Foobar(foo, bar)
+        print(f"obtained {foobar}")
         state.foobars.append(foobar)
     else:
         # in case of failure the bar can be reused, the foo is lost.
+        print(f"assembling foobar failed, recovered {bar}")
         state.bars.append(bar)
     return state
 
 
 def sell_foobars(state: State, foobars: List[Foobar]) -> State:
     # we earn €1 per foobar sold
-    state.money.add(len(foobars))
+    profit = Money(len(foobars))
+    print(f"sold foobars for {profit}")
+    state.money.add(profit)
     return state
 
 
