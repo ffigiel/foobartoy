@@ -166,7 +166,6 @@ class RobotActionBuyNewRobot(RobotAction):
         if len(foos) != self.foos_required:
             raise ValueError(f"Need {self.foos_required} foos to buy a robot.")
         self.foos = foos
-        self.remaining_time = Time(100)
 
 
 class Robot:
@@ -242,6 +241,7 @@ def update_robot_actions_progress(state: State) -> State:
         if isinstance(robot.action, RobotActionChangingTask):
             robot.action = robot.action.next_task
             # Need to check remaining time again, for example buying a new robot takes 0s to complete
+            # so we can perform it in the same tick
             if robot.action.remaining_time > Time(0):
                 continue
         if isinstance(robot.action, RobotActionMiningFoo):
@@ -362,7 +362,7 @@ def should_this_robot_do_that_action(
     # Can I do it efficiently?
     if robot_did_this_action_recently(robot, action):
         return True
-    # Can other robot do it for me?
+    # Can other robots do it for me?
     for other_robot in state.robots:
         if other_robot != robot and robot_did_this_action_recently(other_robot, action):
             return False
@@ -433,7 +433,7 @@ def log_state(state: State):
             ]
         ),
     )
-    print("|", " | ".join(repr(r.action) for r in state.robots))
+    # print("|", " | ".join(repr(r.action) for r in state.robots))
 
 
 if __name__ == "__main__":
