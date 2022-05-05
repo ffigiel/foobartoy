@@ -13,17 +13,17 @@ class Time:
     def __init__(self, n):
         self.n = n
 
-    def __lt__(self, other):
-        return self.n.__lt__(other)
+    def __lt__(self, other: Time):
+        return self.n.__lt__(other.n)
 
-    def __gt__(self, other):
-        return self.n.__gt__(other)
+    def __gt__(self, other: Time):
+        return self.n.__gt__(other.n)
 
-    def __eq__(self, other):
-        return self.n.__eq__(other)
+    def __eq__(self, other: Time):
+        return self.n.__eq__(other.n)
 
     def __str__(self) -> str:
-        return f"{self.as_seconds()}€"
+        return f"{self.as_seconds()}s"
 
     def increment(self):
         self.n += 1
@@ -38,14 +38,14 @@ class Time:
 class Foo(int):
     """Each foo must have a unique serial number."""
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"foo_{int(self)}"
 
 
 class Bar(int):
     """Each bar must have a unique serial number."""
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         return f"bar_{int(self)}"
 
 
@@ -64,14 +64,14 @@ class Money:
     def __init__(self, n):
         self.n = n
 
-    def __lt__(self, other):
-        return self.n.__lt__(other)
+    def __lt__(self, other: Money):
+        return self.n.__lt__(other.n)
 
-    def __gt__(self, other):
-        return self.n.__gt__(other)
+    def __gt__(self, other: Money):
+        return self.n.__gt__(other.n)
 
-    def __eq__(self, other):
-        return self.n.__eq__(other)
+    def __eq__(self, other: Money):
+        return self.n.__eq__(other.n)
 
     def __str__(self) -> str:
         return f"{self.n}€"
@@ -170,7 +170,7 @@ class Robot:
         self.action = RobotActionIdle(None)
 
     def set_action(self, action: RobotAction):
-        if self.action.remaining_time > 0:
+        if self.action.remaining_time > Time(0):
             raise ValueError("This robot is busy and cannot do this action.")
         if robot_did_this_action_recently(self, type(action)):
             self.action = action
@@ -217,12 +217,11 @@ class FutureState:
 
 def main():
     state = State()
-    print("infinite loop")
     while True:
         state = update_robot_actions_progress(state)
         state = dispatch_robot_actions(state)
         if len(state.robots) >= 30:
-            print(f"Finished with {len(state.robots)} robots in {state.clock}s.")
+            print(f"Finished with {len(state.robots)} robots in {state.clock}.")
             break
         state.clock.increment()
 
@@ -230,13 +229,13 @@ def main():
 def update_robot_actions_progress(state: State) -> State:
     for robot in state.robots:
         robot.action.remaining_time.decrement()
-        if robot.action.remaining_time > 0:
+        if robot.action.remaining_time > Time(0):
             continue
         # Action is finished
         if isinstance(robot.action, RobotActionChangingTask):
             robot.action = robot.action.next_task
             # Need to check remaining time again, for example buying a new robot takes 0s to complete
-            if robot.action.remaining_time > 0:
+            if robot.action.remaining_time > Time(0):
                 continue
         if isinstance(robot.action, RobotActionMiningFoo):
             state = mine_foo(state)
@@ -333,7 +332,6 @@ def dispatch_robot_actions(state: State) -> State:
         else:
             state = go_mine_bars(state, robot)
             continue
-        print("Warning: A robot has nothing to do!")
     return state
 
 
