@@ -314,10 +314,18 @@ def dispatch_robot_actions(state: State) -> State:
             ):
                 state = go_sell_foobars(state, robot)
                 continue
-        # Figure out what action to prioritize
+        # See what resources will be available in the future
         future_state = FutureState(state)
-        if future_state.num_foobars < RobotActionSellingFoobars.max_foobars:
-            pass  # TODO
+        # Assemble foobars if we have surplus resources
+        if (
+            len(state.foos) > RobotActionBuyNewRobot.foos_required
+            and len(state.bars) > 0
+        ):
+            if should_this_robot_do_that_action(
+                state, robot, RobotActionAssemblingFoobar
+            ):
+                state = go_assemble_foobars(state, robot)
+                continue
         print("Warning: A robot has nothing to do!")
     return state
 
@@ -358,6 +366,15 @@ def go_sell_foobars(state: State, robot: Robot) -> State:
     action = RobotActionSellingFoobars(foobars)
     robot.set_action(action)
     print(f"selling {action.foobars} for {action.profit}")
+    return state
+
+
+def go_assemble_foobars(state: State, robot: Robot) -> State:
+    foo = state.foos.pop()
+    bar = state.bars.pop()
+    action = RobotActionAssemblingFoobar(foo, bar)
+    robot.set_action(action)
+    print(f"assembling foobar with {foo} and {bar}")
     return state
 
 
