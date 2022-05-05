@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from typing import List, Optional
+from typing import List, Optional, Type
 from abc import ABCMeta
 
 
@@ -63,6 +63,15 @@ class Money:
 
     def __init__(self, n):
         self.n = n
+
+    def __lt__(self, other):
+        return self.n.__lt__(other)
+
+    def __gt__(self, other):
+        return self.n.__gt__(other)
+
+    def __eq__(self, other):
+        return self.n.__eq__(other)
 
     def __str__(self) -> str:
         return f"{self.n}€"
@@ -159,6 +168,14 @@ class Robot:
 
     def __init__(self):
         self.action = RobotActionIdle(None)
+
+    def set_action(self, action: RobotAction):
+        if self.action.remaining_time > 0:
+            raise ValueError("This robot is busy and cannot do this action.")
+        if robot_did_this_action_recently(self, type(action)):
+            self.action = action
+        else:
+            self.action = RobotActionChangingTask(action)
 
 
 class State:
@@ -269,7 +286,7 @@ def assemble_foobar(state: State, action: RobotActionAssemblingFoobar) -> State:
 
 
 def sell_foobars(state: State, action: RobotActionSellingFoobars) -> State:
-    print(f"sold foobars for {action.profit}")
+    print(f"sold {action.foobars} for {action.profit}")
     state.money.add(action.profit)
     return state
 
@@ -285,10 +302,65 @@ def dispatch_robot_actions(state: State) -> State:
         if not isinstance(robot.action, RobotActionIdle):
             continue
         # This robot is idle
+        # Prioritize buying more robots whenever possible
+        if can_afford_new_robot(state):
+            if should_this_robot_do_that_action(state, robot, RobotActionBuyNewRobot):
+                state = go_buy_new_robot(state, robot)
+                continue
+        # Always sell maximum amount of foobars to save time
+        if len(state.foobars) >= RobotActionSellingFoobars.max_foobars:
+            if should_this_robot_do_that_action(
+                state, robot, RobotActionSellingFoobars
+            ):
+                state = go_sell_foobars(state, robot)
+                continue
         future_state = FutureState(state)
         if future_state.num_foobars < RobotActionSellingFoobars.max_foobars:
             pass  # TODO
+        print("Warning: A robot has nothing to do!")
     return state
+
+
+def should_this_robot_do_that_action(
+    state: State, robot: Robot, action: Type[RobotAction]
+) -> bool:
+    if robot_did_this_action_recently(robot, action):
+        return True
+    for other_robot in state.robots:
+        if other_robot != robot and robot_did_this_action_recently(other_robot, action):
+            return True
+    return False
+
+
+def robot_did_this_action_recently(robot: Robot, action: Type[RobotAction]) -> bool:
+    return isinstance(robot.action, RobotActionIdle) and isinstance(
+        robot.action.prev_action, action
+    )
+
+
+def go_buy_new_robot(state: State, robot: Robot) -> State:
+    state.money.sub(RobotActionBuyNewRobot.cost)
+    fr = RobotActionBuyNewRobot.foos_required
+    foos, state.foos = state.foos[:fr], state.foos[fr:]
+    action = RobotActionBuyNewRobot(foos)
+    robot.set_action(action)
+    print(f"buying a new robot for {action.cost} and {action.foos}")
+    return state
+
+
+def go_sell_foobars(state: State, robot: Robot) -> State:
+    mf = RobotActionSellingFoobars.max_foobars
+    foobars, state.foobars = state.foobars[:mf], state.foobars[mf:]
+    action = RobotActionSellingFoobars(foobars)
+    robot.set_action(action)
+    print(f"selling {action.foobars} for {action.profit}")
+    return state
+
+
+def can_afford_new_robot(state: State) -> bool:
+    return (state.money > RobotActionBuyNewRobot.cost) and (
+        len(state.foos) > RobotActionBuyNewRobot.foos_required
+    )
 
 
 if __name__ == "__main__":
