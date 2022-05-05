@@ -141,6 +141,19 @@ class RobotActionSellingFoobars(RobotAction):
         return Money(len(self.foobars))
 
 
+class RobotActionBuyNewRobot(RobotAction):
+    """Buy a new robot for €3 and 6 foo, 0s"""
+
+    cost = Money(3)
+    foos_required = 6
+
+    def __init__(self, foos: List[Foo]):
+        if len(foos) != self.foos_required:
+            raise ValueError(f"Need {self.foos_required} foos to buy a robot.")
+        self.foos = foos
+        self.remaining_time = Time(100)
+
+
 class Robot:
     action: RobotAction
 
